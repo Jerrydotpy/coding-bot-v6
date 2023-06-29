@@ -53,9 +53,7 @@ class Helper(commands.Cog, command_attrs=dict(hidden=False)):
 
         official_helper_role = ctx.guild.get_role(OFFICIAL_HELPER_ROLE_ID)
 
-        if official_helper_role not in ctx.author.roles:
-            return False
-        return True
+        return official_helper_role in ctx.author.roles
 
     async def capture_evidence(
         self, ctx: commands.Context[CodingBot]
@@ -175,8 +173,8 @@ class Helper(commands.Cog, command_attrs=dict(hidden=False)):
 
         embed = discord.Embed(color=color, timestamp=discord.utils.utcnow())
 
-        embed.description = "{} **Action:** {}\n**Reason:** {}\n".format(
-            icon, action_string.title(), reason
+        embed.description = (
+            f"{icon} **Action:** {action_string.title()}\n**Reason:** {reason}\n"
         )
         if duration:
             embed.description += "**Duration:** {}\n".format(
@@ -272,12 +270,9 @@ class Helper(commands.Cog, command_attrs=dict(hidden=False)):
 
         for i, warning in enumerate(records, 1):
             helper = ctx.guild.get_member(warning.helper_id)
-            if helper:
-                helper = helper.mention
-            else:
-                helper = "Unknown"
+            helper = helper.mention if helper else "Unknown"
             embed.add_field(
-                name="`{}.` Reason: {}".format(i, warning.reason),
+                name=f"`{i}.` Reason: {warning.reason}",
                 value=f"Issued by: {helper} - <t:{int(warning.date)}:f>",
                 inline=False,
             )
