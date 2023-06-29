@@ -367,19 +367,16 @@ class Miscellaneous(commands.Cog, command_attrs=dict(hidden=False)):
                 ctx,
                 check=lambda i: i.user.id == ctx.author.id,
                 )
-            paginator.add_button(
-                "delete", label="Delete", style=discord.ButtonStyle.danger
-            )
-            await paginator.start()
         else:
             paginator = pg.Paginator(self.bot, embeds, ctx)
             paginator.add_button("back", emoji="◀️")
             paginator.add_button("goto", style=discord.ButtonStyle.primary)
             paginator.add_button("next", emoji="▶️")
-            paginator.add_button(
-                "delete", label="Delete", style=discord.ButtonStyle.danger
-            )
-            await paginator.start()
+
+        paginator.add_button(
+            "delete", label="Delete", style=discord.ButtonStyle.danger
+        )
+        await paginator.start()
 
     @commands.hybrid_group(invoke_without_command=True)
     async def trainee(self, ctx: commands.Context[CodingBot]):
@@ -400,14 +397,12 @@ class Miscellaneous(commands.Cog, command_attrs=dict(hidden=False)):
         """
 
         trainee_role = ctx.guild.get_role(729537643951554583)  # type: ignore
-        members = trainee_role.members
-
-        if not members:
-            trainees = "No trainees yet."
-        else:
+        if members := trainee_role.members:
             trainees = "\n".join(
                 f"{i}. {member.mention}" for i, member in enumerate(members, 1)
             )
+        else:
+            trainees = "No trainees yet."
         embed = discord.Embed(
             title="Trainees list", description=trainees, color=discord.Color.blue()
         )

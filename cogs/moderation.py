@@ -180,8 +180,8 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
 
         embed = discord.Embed(color=color, timestamp=discord.utils.utcnow())
 
-        embed.description = "{} **Action:** {}\n**Reason:** {}\n".format(
-            icon, action_string.title(), reason
+        embed.description = (
+            f"{icon} **Action:** {action_string.title()}\n**Reason:** {reason}\n"
         )
         if duration:
             embed.description += "**Duration:** {}\n".format(
@@ -224,8 +224,7 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         {prefix}kick {user} Because I don't like them
         """
         assert ctx.guild is not None
-        check_made = self.check_member_permission(ctx, member)
-        if check_made:
+        if check_made := self.check_member_permission(ctx, member):
             return await self.bot.reply(ctx, check_made)
         try:
             await member.send(
@@ -262,22 +261,20 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         {prefix}ban {user} spamming
         """
         assert ctx.guild is not None
-        check_made = self.check_member_permission(ctx, member)
-        if check_made:
+        if check_made := self.check_member_permission(ctx, member):
             return await self.bot.reply(ctx, check_made)
-        else:
-            try:
-                await member.send(
-                    "You have been :hammer: **Banned** :hammer: from "
-                    f"**{ctx.guild.name}**. \nReason: {reason}"
-                )
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-            await ctx.guild.ban(member, reason=reason, delete_message_days=7)
-            await self.bot.reply(ctx, f"Banned {member.mention}")
-            evidence = await self.capture_evidence(ctx)
-            await self.log(action="ban", moderator=ctx.author, member=member, 
-                           undo=False, reason=reason, duration=None, evidence=evidence)
+        try:
+            await member.send(
+                "You have been :hammer: **Banned** :hammer: from "
+                f"**{ctx.guild.name}**. \nReason: {reason}"
+            )
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        await ctx.guild.ban(member, reason=reason, delete_message_days=7)
+        await self.bot.reply(ctx, f"Banned {member.mention}")
+        evidence = await self.capture_evidence(ctx)
+        await self.log(action="ban", moderator=ctx.author, member=member, 
+                       undo=False, reason=reason, duration=None, evidence=evidence)
 
     @commands.hybrid_command(name="unban")
     @commands.has_permissions(ban_members=True)
@@ -327,8 +324,7 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         {prefix}mute <member> <duration> [reason]
         """
         assert ctx.guild is not None
-        check_made = self.check_member_permission(ctx, member)
-        if check_made:
+        if check_made := self.check_member_permission(ctx, member):
             return await self.bot.reply(ctx, check_made)
 
         try:
@@ -366,8 +362,7 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         Example:
         {prefix}unmute {user} I am feeling generous
         """
-        check_made = self.check_member_permission(ctx, member)
-        if check_made:
+        if check_made := self.check_member_permission(ctx, member):
             return await self.bot.reply(ctx, check_made)
         try:
             await member.timeout(None)
@@ -402,16 +397,13 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
             )
         counter_dict: Dict[str, Any] = {"banned": [], "not_banned": []}
         for user in users:
-            check_made = self.check_member_permission(ctx, user)
-            if check_made:
+            if check_made := self.check_member_permission(ctx, user):
                 counter_dict["not_banned"].append(user)
                 continue
             await ctx.guild.ban(user)  # type: ignore
             counter_dict["banned"].append(user)
         embed = discord.Embed(color=discord.Color.red())
-        description = "Following members were banned:\n{}".format(
-            ", ".join(f"{user.mention}" for user in counter_dict["banned"])
-        )
+        description = f'Following members were banned:\n{", ".join(f"{user.mention}" for user in counter_dict["banned"])}'
         if counter_dict["not_banned"]:
             embed.color = discord.Color.yellow()
             description += "\n\nFollowing members were not banned:\n"
@@ -437,8 +429,7 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         Example:
         {prefix}warn {user} broke rules
         """
-        check = self.check_member_permission(ctx, member, priv_level=0)
-        if check:
+        if check := self.check_member_permission(ctx, member, priv_level=0):
             return await self.bot.reply(ctx, check)
         assert ctx.guild is not None
         if not reason:
@@ -506,12 +497,9 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
 
         for i, warning in enumerate(records, 1):
             moderator = ctx.guild.get_member(warning.moderator_id)
-            if moderator:
-                moderator = moderator.mention
-            else:
-                moderator = "Unknown"
+            moderator = moderator.mention if moderator else "Unknown"
             embed.add_field(
-                name="`{}.` Reason: {}".format(i, warning.reason),
+                name=f"`{i}.` Reason: {warning.reason}",
                 value=f"Issued by: {moderator} - <t:{int(warning.date)}:f>",
                 inline=False,
             )
@@ -671,7 +659,7 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
         """
         if not message and not ctx.message.reference:
             return await ctx.send("Please specify a message to delete.")
-        elif not message and ctx.message.reference:
+        elif not message:
             message = ctx.message.reference.resolved
             await message.delete()
         else:
@@ -865,21 +853,21 @@ class Moderation(commands.Cog, command_attrs=dict(hidden=False)):
 
         This will ban all members that have joined during the raid.
         """
-        if not self.bot.raid_mode_enabled:
-            if self.bot.raid_checker.possible_raid:
-                self.bot.raid_mode_enabled = True
-                await self.bot.reply(ctx, "Raid mode is now enabled.")
-                for member in self.bot.raid_checker.cache:
-                    if self.bot.raid_checker.check(member):
-                        await member.ban(
-                            reason="Raid mode enabled and met raid criteria."
-                        )
-            else:
-                await self.bot.reply(
-                    ctx, "There is no raid that has been detected yet."
-                )
-        else:
+        if self.bot.raid_mode_enabled:
             await self.bot.reply(ctx, "Raid mode is already enabled.")
+
+        elif self.bot.raid_checker.possible_raid:
+            self.bot.raid_mode_enabled = True
+            await self.bot.reply(ctx, "Raid mode is now enabled.")
+            for member in self.bot.raid_checker.cache:
+                if self.bot.raid_checker.check(member):
+                    await member.ban(
+                        reason="Raid mode enabled and met raid criteria."
+                    )
+        else:
+            await self.bot.reply(
+                ctx, "There is no raid that has been detected yet."
+            )
 
     @raid_mode.command(name="disable")
     async def raid_mode_disable(self, ctx: commands.Context[CodingBot]) -> None:
